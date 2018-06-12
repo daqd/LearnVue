@@ -37,6 +37,12 @@ export function initMixin (Vue: Class<Component>) {
       // internal component options needs special treatment.
       initInternalComponent(vm, options)
     } else {
+      //合并策略，用于合并Vue传入的options,
+      //这里会传入三个参数：
+      //第一个是挂载在Vue构造函数上的options对象，静态属性
+      //第二个是实例化Vue实例的时候传入的参数
+      //第三个参数是当前的实例对象vm
+      //最终会将所有的options合并，并且挂载上不同的options参数相对应的策略方法并返回
       vm.$options = mergeOptions(
         resolveConstructorOptions(vm.constructor),
         options || {},
@@ -47,16 +53,26 @@ export function initMixin (Vue: Class<Component>) {
     if (process.env.NODE_ENV !== 'production') {
       initProxy(vm)
     } else {
+      //生产环境下会在当前实例下挂载一个名为_renderProxy的属性，其值指向当前的vue实例本身
       vm._renderProxy = vm
     }
     // expose real self
+    //在当前实例下挂载一个名为_self的属性，其值指向当前的vue实例本身
     vm._self = vm
+    //挂载基本的生命周期所需的参数，除此之外还有$parent,$children,$refs
     initLifecycle(vm)
+    //除了设置一些初始化的操作，似乎还调用一些类似于父级的事件方法，暂时留个疑问：vm.$options._parentListeners ?????
     initEvents(vm)
+    //
     initRender(vm)
+    //执行了beforeCreate的生命周期方法，目前理解到的是执行到挂载在$options下的对应的生命周期方法的策略方法
     callHook(vm, 'beforeCreate')
+    //
     initInjections(vm) // resolve injections before data/props
+    
+    //初始化props,methods,data，computed，watch
     initState(vm)
+    
     initProvide(vm) // resolve provide after data/props
     callHook(vm, 'created')
 

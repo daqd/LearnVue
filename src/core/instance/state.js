@@ -46,11 +46,14 @@ export function proxy (target: Object, sourceKey: string, key: string) {
 }
 
 export function initState (vm: Component) {
+  //在实例下挂载 _watchers
   vm._watchers = []
+  //取出当前实例下的所有的options,这里获取到的是被策略合并过得
   const opts = vm.$options
   if (opts.props) initProps(vm, opts.props)
   if (opts.methods) initMethods(vm, opts.methods)
   if (opts.data) {
+    //初始化options的data
     initData(vm)
   } else {
     observe(vm._data = {}, true /* asRootData */)
@@ -108,7 +111,9 @@ function initProps (vm: Component, propsOptions: Object) {
 }
 
 function initData (vm: Component) {
+  //获取到实例化Vue时传入的data
   let data = vm.$options.data
+  //此时data获取到的应该是在策略处理完data之后的返回值：之后再进一步分析
   data = vm._data = typeof data === 'function'
     ? getData(data, vm)
     : data || {}
@@ -120,6 +125,7 @@ function initData (vm: Component) {
       vm
     )
   }
+
   // proxy data on instance
   const keys = Object.keys(data)
   const props = vm.$options.props
@@ -141,11 +147,16 @@ function initData (vm: Component) {
         `Use prop default value instead.`,
         vm
       )
+      //isReserved通过判断该key是否是$或_来判断之前被observe过
     } else if (!isReserved(key)) {
+      //通过定义getter和setter方法，
+      //将$options下的data访问代理到当前实例，
+      //这样，便直接可以通过vm.key方式直接调用某个data下的数据
       proxy(vm, `_data`, key)
     }
   }
   // observe data
+  //从这里开始响应式处理数据，详见上一层目录observe下的index文件
   observe(data, true /* asRootData */)
 }
 

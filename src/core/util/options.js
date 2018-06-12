@@ -25,6 +25,7 @@ import {
  * how to merge a parent option value and a child option
  * value into the final value.
  */
+ //当前为空对象，在外城config.js中有 optionMergeStrategies: Object.create(null)
 const strats = config.optionMergeStrategies
 
 /**
@@ -145,6 +146,7 @@ function mergeHook (
     : parentVal
 }
 
+//将生命周期方法的合并策略挂载为 mergeHook
 LIFECYCLE_HOOKS.forEach(hook => {
   strats[hook] = mergeHook
 })
@@ -171,6 +173,7 @@ function mergeAssets (
   }
 }
 
+// 将'component','directive','filter'的合并策略挂载为 mergeAssets
 ASSET_TYPES.forEach(function (type) {
   strats[type + 's'] = mergeAssets
 })
@@ -263,7 +266,9 @@ function checkComponents (options: Object) {
  * Object-based format.
  */
 function normalizeProps (options: Object, vm: ?Component) {
+  // 获取到当前实例化Vue传入的options
   const props = options.props
+  //未传入则终止，暂时先考虑第一种最简单的初始化一个vue实例的情况，基本上传入一个el和data就足够了
   if (!props) return
   const res = {}
   let i, val, name

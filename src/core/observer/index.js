@@ -104,6 +104,10 @@ function copyAugment (target: Object, src: Object, keys: Array<string>) {
  * returns the new observer if successfully observed,
  * or the existing observer if the value already has one.
  */
+ /**
+ *  第一个参数传入要响应式处理的数据
+ * 第二个参数是一个布尔值，暂不清楚作用是做啥的
+ **/
 export function observe (value: any, asRootData: ?boolean): Observer | void {
   if (!isObject(value) || value instanceof VNode) {
     return
