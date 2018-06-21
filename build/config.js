@@ -23,7 +23,8 @@ const weexFactoryPlugin = {
     return '}'
   }
 }
-
+//定义的全局的别名，builds对象中的entry中的web路径也配置在其中，对应的地址是：
+//web: resolve('src/platforms/web')
 const aliases = require('./alias')
 const resolve = p => {
   const base = p.split('/')[0]
@@ -36,6 +37,7 @@ const resolve = p => {
 
 const builds = {
   // Runtime only (CommonJS). Used by bundlers e.g. Webpack & Browserify
+  // commonjs规范打包，运行时版本
   'web-runtime-cjs': {
     entry: resolve('web/entry-runtime.js'),
     dest: resolve('dist/vue.runtime.common.js'),
@@ -43,6 +45,7 @@ const builds = {
     banner
   },
   // Runtime+compiler CommonJS build (CommonJS)
+  // commonjs规范打包，运行时版本+compiler
   'web-full-cjs': {
     entry: resolve('web/entry-runtime-with-compiler.js'),
     dest: resolve('dist/vue.common.js'),
@@ -52,6 +55,7 @@ const builds = {
   },
   // Runtime only (ES Modules). Used by bundlers that support ES Modules,
   // e.g. Rollup & Webpack 2
+  //esModule规范打包，运行时版本
   'web-runtime-esm': {
     entry: resolve('web/entry-runtime.js'),
     dest: resolve('dist/vue.runtime.esm.js'),
@@ -59,6 +63,7 @@ const builds = {
     banner
   },
   // Runtime+compiler CommonJS build (ES Modules)
+  //esModule规范打包，运行时版本+compiler
   'web-full-esm': {
     entry: resolve('web/entry-runtime-with-compiler.js'),
     dest: resolve('dist/vue.esm.js'),
@@ -75,6 +80,7 @@ const builds = {
     banner
   },
   // runtime-only production build (Browser)
+  // umd规范打包，也就是常用的script引入js组件库的规范，生产
   'web-runtime-prod': {
     entry: resolve('web/entry-runtime.js'),
     dest: resolve('dist/vue.runtime.min.js'),
@@ -83,6 +89,7 @@ const builds = {
     banner
   },
   // Runtime+compiler development build (Browser)
+  // umd规范打包，运行时+compiler也就是常用的script引入js组件库的规范，开发版本
   'web-full-dev': {
     entry: resolve('web/entry-runtime-with-compiler.js'),
     dest: resolve('dist/vue.js'),
@@ -92,6 +99,7 @@ const builds = {
     banner
   },
   // Runtime+compiler production build  (Browser)
+ // umd规范打包，运行时+compiler也就是常用的script引入js组件库的规范，生产版本
   'web-full-prod': {
     entry: resolve('web/entry-runtime-with-compiler.js'),
     dest: resolve('dist/vue.min.js'),

@@ -1,4 +1,9 @@
 /* @flow */
+/**
+ * 将平台相关的配置挂载上去，目前有两个平台Web和Weex
+ * **/
+//core是一个别名，定义在build文件夹中的alias文件中：
+//core: resolve('src/core')
 
 import Vue from 'core/index'
 import config from 'core/config'

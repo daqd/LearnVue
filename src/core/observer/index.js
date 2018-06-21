@@ -41,6 +41,7 @@ export class Observer {
     this.value = value
     this.dep = new Dep()
     this.vmCount = 0
+    //def是定义的函数，使用Object.defineProperty()给value添加不可枚举的属性,__ob__是一个对象被observe的标志。
     def(value, '__ob__', this)
     if (Array.isArray(value)) {
       const augment = hasProto
@@ -49,6 +50,7 @@ export class Observer {
       augment(value, arrayMethods, arrayKeys)
       this.observeArray(value)
     } else {
+       //对于对象，遍历对象，并用Object.defineProperty转化为getter/setter，便于监控数据的get和set
       this.walk(value)
     }
   }
@@ -113,6 +115,7 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
     return
   }
   let ob: Observer | void
+  //如果存在__ob__属性，说明该对象没被observe过，不是observer类
   if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
     ob = value.__ob__
   } else if (
@@ -122,6 +125,7 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
     Object.isExtensible(value) &&
     !value._isVue
   ) {
+    //如果数据没有被observe过，且数据是array或object类型，那么将数据转化为observer类型，所以observer类接收的是对象和数组。
     ob = new Observer(value)
   }
   if (asRootData && ob) {
@@ -140,6 +144,7 @@ export function defineReactive (
   customSetter?: ?Function,
   shallow?: boolean
 ) {
+  //实例化一个dep，并将其闭包于每一个属性中，每一个属性有一个dep实例，每一个dep可以有多个订阅者
   const dep = new Dep()
 
   const property = Object.getOwnPropertyDescriptor(obj, key)
@@ -150,13 +155,19 @@ export function defineReactive (
   // cater for pre-defined getter/setters
   const getter = property && property.get
   const setter = property && property.set
-
+  //递归observe所有层次的data
   let childOb = !shallow && observe(val)
+
   Object.defineProperty(obj, key, {
     enumerable: true,
     configurable: true,
     get: function reactiveGetter () {
+      //获取属性的值，如果这个属性在转化之前定义过getter，那么调用该getter得到value的值，否则直接返回val。
       const value = getter ? getter.call(obj) : val
+      //这里是Dep收集订阅者的过程，只有在Dep.target存在的情况下才进行这个操作，在Watcher收集依赖的时候才会设置Dep.target，所以Watcher收集依赖的时机就是Dep收集订阅者的时机。
+      //调用get的情况有两种:
+      //一是Watcher收集依赖的时候（此时Dep收集订阅者），
+      //二是模板或js代码里用到这个值，这个时候是不需要收集依赖的，只要返回值就可以了。
       if (Dep.target) {
         dep.depend()
         if (childOb) {
@@ -183,7 +194,9 @@ export function defineReactive (
       } else {
         val = newVal
       }
+      //当为属性设置了新的值，是需要observe的
       childOb = !shallow && observe(newVal)
+      //set的时候数据变化了，通知更新数据
       dep.notify()
     }
   })

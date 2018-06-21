@@ -26,6 +26,7 @@ import {
  * value into the final value.
  */
  //当前为空对象，在外城config.js中有 optionMergeStrategies: Object.create(null)
+ 
 const strats = config.optionMergeStrategies
 
 /**

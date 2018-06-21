@@ -322,6 +322,8 @@ export function stateMixin (Vue: Class<Component>) {
   // the object here.
   const dataDef = {}
   dataDef.get = function () { return this._data }
+  //暂时搞不懂这样的写法，定义一个对象，为对象添加get/set的key，其值实际上代理的实例下的_data和_props
+  //那岂不是当访问_data的时候，要这样写this.$data.get().key啊？？？
   const propsDef = {}
   propsDef.get = function () { return this._props }
   if (process.env.NODE_ENV !== 'production') {
@@ -336,9 +338,12 @@ export function stateMixin (Vue: Class<Component>) {
       warn(`$props is readonly.`, this)
     }
   }
+  //暂时留个疑问
   Object.defineProperty(Vue.prototype, '$data', dataDef)
   Object.defineProperty(Vue.prototype, '$props', propsDef)
 
+  //挂载实例方法$set和$delete，这两个api的作用是用来添加新的响应式数据字段
+  //具体实现详见set方法
   Vue.prototype.$set = set
   Vue.prototype.$delete = del
 

@@ -10,20 +10,30 @@ import { initLifecycle, callHook } from './lifecycle'
 import { initProvide, initInjections } from './inject'
 import { extend, mergeOptions, formatComponentName } from '../util/index'
 
+//定义一个变量，后边会将该变量挂载到实例上，以保证每次生成一个实例都有一个唯一的标识
 let uid = 0
 
+//接受Vue构造方法
 export function initMixin (Vue: Class<Component>) {
+
+  //在Vue构造方法的原型上挂载_init方法，这也是在new Vue()执行的第一个实例方法
+  //该方法接受实例化Vue传入的参数，是一个对象，对象内包含:data,computed,components等等
   Vue.prototype._init = function (options?: Object) {
+    //定义一个常量vm，代表的是当前的实例
     const vm: Component = this
     // a uid
     //每个Vue实例设置唯一id
     vm._uid = uid++
 
+    //定义两个标记变量，用于在支持performance的浏览器上测试性能
+    //回头单独写篇博客介绍这个
     let startTag, endTag
     /* istanbul ignore if */
     if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
       startTag = `vue-perf-start:${vm._uid}`
       endTag = `vue-perf-end:${vm._uid}`
+      //利用performance打上开始标记，相当于 performance.mark
+      //详见until下的per.js文件中的描述
       mark(startTag)
     }
 
@@ -37,10 +47,13 @@ export function initMixin (Vue: Class<Component>) {
       // internal component options needs special treatment.
       initInternalComponent(vm, options)
     } else {
-      //合并策略，用于合并Vue传入的options,
+      //合并策略，用于合并构造方法上的options选项和实例化时传入的options,
+      //构造方法不一定只是Vue，也可能是Vue构造方法的子类，例如：
+      //let Child = Vue.extend({})
+      //也可以通过 let child = new Child({})创建一个实例
       //这里会传入三个参数：
-      //第一个是挂载在Vue构造函数上的options对象，静态属性
-      //第二个是实例化Vue实例的时候传入的参数
+      //第一个是挂载在构造函数上的options对象，静态属性
+      //第二个是实例化构造方法的时候传入的参数
       //第三个参数是当前的实例对象vm
       //最终会将所有的options合并，并且挂载上不同的options参数相对应的策略方法并返回
       vm.$options = mergeOptions(
@@ -77,6 +90,7 @@ export function initMixin (Vue: Class<Component>) {
     callHook(vm, 'created')
 
     /* istanbul ignore if */
+    //这里,跟上面开始打上开始标记相对应
     if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
       vm._name = formatComponentName(vm, false)
       mark(endTag)
