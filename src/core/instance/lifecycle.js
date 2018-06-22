@@ -37,7 +37,7 @@ export function initLifecycle (vm: Component) {
 
   vm.$children = []
   vm.$refs = {}
-
+  
   vm._watcher = null
   vm._inactive = null
   vm._directInactive = false

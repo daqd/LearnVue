@@ -29,7 +29,12 @@ if (process.env.NODE_ENV !== 'production') {
     Proxy.toString().match(/native code/)
 
   if (hasProxy) {
+    // isBuiltInModifier 函数用来检测是否是内置的修饰符
     const isBuiltInModifier = makeMap('stop,prevent,self,ctrl,shift,alt,meta,exact')
+    //为config.keyCodes添加一个Proxy代理
+    //当为config.keyCodes设置值的时候，
+    //如果当前的key是内置的修饰符，则提示无效
+    //防止内置的修饰符被修改
     config.keyCodes = new Proxy(config.keyCodes, {
       set (target, key, value) {
         if (isBuiltInModifier(key)) {
@@ -44,10 +49,17 @@ if (process.env.NODE_ENV !== 'production') {
   }
 
   const hasHandler = {
+    //has方法用来拦截HasProperty操作，即判断对象是否具有某个属性时，这个方法会生效。典型的操作就是in运算符。
     has (target, key) {
+      //判断当前访问的key是否存在
       const has = key in target
+      //判断当前访问的key是否是全局的JS API
       const isAllowed = allowedGlobals(key) || key.charAt(0) === '_'
+      //需要两个条件满足，才会提示访问的当前的key不存在，会展示出错误提示
+      //1.当前访问的key没有在Vue中定义
+      //2.当前访问的key也不是原生JS自带的全局API
       if (!has && !isAllowed) {
+        //错误提示：访问的key不存在
         warnNonPresent(target, key)
       }
       return has || !isAllowed
@@ -70,6 +82,11 @@ if (process.env.NODE_ENV !== 'production') {
       const handlers = options.render && options.render._withStripped
         ? getHandler
         : hasHandler
+      //简单备注一下Proxy的用法：
+      //Proxy是ES6新增的API，用来对对象增加拦截操作，属于一种元编程
+      //第一个参数是要操作的目标对象
+      //第二个参数是handler，为一个对象，里面有多个操作，如get set 等等
+      //对 new Proxy 的实例执行对应的操作才会触发拦截，直接对目标对象操作不会触发
       vm._renderProxy = new Proxy(vm, handlers)
     } else {
       vm._renderProxy = vm
