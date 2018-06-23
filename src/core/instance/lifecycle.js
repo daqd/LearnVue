@@ -37,7 +37,7 @@ export function initLifecycle (vm: Component) {
 
   vm.$children = []
   vm.$refs = {}
-  
+
   vm._watcher = null
   vm._inactive = null
   vm._directInactive = false
@@ -315,16 +315,25 @@ export function deactivateChildComponent (vm: Component, direct?: boolean) {
 }
 
 export function callHook (vm: Component, hook: string) {
+  //先从$options中获取到生命周期钩子，如果是mounted那就是vm.$options.mounted
   const handlers = vm.$options[hook]
   if (handlers) {
+    //handlers可能是个数组,比如：
+    //通过Vue.extend生成的一个子类，父类上定义了mounted，子类初始化的时候再次定义了一遍mounted，
+    //此时，调用子类实例的时候，会按照顺序执行两次
     for (let i = 0, j = handlers.length; i < j; i++) {
       try {
+        //通过call来调用当前生命周期方法，以保证生命周期方法内的this指向当前的实例本身
         handlers[i].call(vm)
       } catch (e) {
         handleError(e, vm, `${hook} hook`)
       }
     }
   }
+  //_hasHookEvent定义在initEvents中
+  //用于检测组件是否有事件监听器
+  //并没有在文档中体现和说明
+  //在组件上可通过@hook:生命周期钩子名称 做监听
   if (vm._hasHookEvent) {
     vm.$emit('hook:' + hook)
   }

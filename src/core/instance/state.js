@@ -34,7 +34,7 @@ const sharedPropertyDefinition = {
   get: noop,
   set: noop
 }
-
+//代理_data下的数据访问到vm下
 export function proxy (target: Object, sourceKey: string, key: string) {
   sharedPropertyDefinition.get = function proxyGetter () {
     return this[sourceKey][key]
@@ -50,15 +50,21 @@ export function initState (vm: Component) {
   vm._watchers = []
   //取出当前实例下的所有的options,这里获取到的是被策略合并过得
   const opts = vm.$options
+  //如果vm.$options选项中存在props，则进行初始化props
   if (opts.props) initProps(vm, opts.props)
+  //同上，如果vm.$options选项中存在methods，则进行初始化methods
   if (opts.methods) initMethods(vm, opts.methods)
+  //同上
   if (opts.data) {
     //初始化options的data
     initData(vm)
   } else {
+    //如果data不存在，则通过observe观测一个空对象
     observe(vm._data = {}, true /* asRootData */)
   }
+  //同上，如果vm.$options选项中存在computed，则进行初始化computed
   if (opts.computed) initComputed(vm, opts.computed)
+  //同上，如果vm.$options选项中存在watch，并且watch不是Object.prototype.watch，则进行初始化watch
   if (opts.watch && opts.watch !== nativeWatch) {
     initWatch(vm, opts.watch)
   }
@@ -111,12 +117,15 @@ function initProps (vm: Component, propsOptions: Object) {
 }
 
 function initData (vm: Component) {
-  //获取到实例化Vue时传入的data
+  //获取到合并选项之后的$options中的data
   let data = vm.$options.data
-  //此时data获取到的应该是在策略处理完data之后的返回值：之后再进一步分析
+  //此时data获取到的应该是在策略处理完data之后的返回值，根据data的合并策略mergeOptions，最终返回的是一个函数
+  //下面的校验是否是一个函数，暂时不清楚在什么情况下不会返回一个函数
+  //注意：在之前的合并策略之后返回的data函数，在初始化阶段才会调用getData得到最终的data数据
   data = vm._data = typeof data === 'function'
     ? getData(data, vm)
     : data || {}
+  //校验当前data选项是否是一个纯对象
   if (!isPlainObject(data)) {
     data = {}
     process.env.NODE_ENV !== 'production' && warn(
@@ -127,13 +136,17 @@ function initData (vm: Component) {
   }
 
   // proxy data on instance
+  //获取到data下所有的key，此时keys为数组
   const keys = Object.keys(data)
+  //获取到当前合并之后$options下所有的props
   const props = vm.$options.props
+  //获取到当前合并之后$options下所有的methods
   const methods = vm.$options.methods
   let i = keys.length
   while (i--) {
     const key = keys[i]
     if (process.env.NODE_ENV !== 'production') {
+      //校验当前的data的key是否与methods下的方法名重名
       if (methods && hasOwn(methods, key)) {
         warn(
           `Method "${key}" has already been defined as a data property.`,
@@ -141,17 +154,24 @@ function initData (vm: Component) {
         )
       }
     }
+    //校验当前的data的key是否与props下的方法名重名，与上面不同的是，data的优先级低于props,data的优先级大于methods
+    //之所以不能重名，是因为在实例中，不管是props、data、methods都会被访问代理到实例下，相同的名字在访问过程中会冲突
     if (props && hasOwn(props, key)) {
       process.env.NODE_ENV !== 'production' && warn(
         `The data property "${key}" is already declared as a prop. ` +
         `Use prop default value instead.`,
         vm
       )
-      //isReserved通过判断该key是否是$或_来判断之前被observe过
+      //isReserved通过判断该key是否是$或_来判断该键是否应该被代理
+      //疑问：$或_开头的键之前遇到的是内置的键，但是当前所处的位置只可能获取到data下的键，不应该会存在$或_
+      //开头的键啊，难道是为了约束规范，避免开发者和Vue框架内置的键本身的键产生混淆？
+      //答案在文档中找到，以下摘自官方文档对data说明：
+      //以 _ 或 $ 开头的属性 不会 被 Vue 实例代理，因为它们可能和 Vue 内置的属性、API 方法冲突
     } else if (!isReserved(key)) {
       //通过定义getter和setter方法，
       //将$options下的data访问代理到当前实例，
       //这样，便直接可以通过vm.key方式直接调用某个data下的数据
+      //实际上还是访问的vm._data.key
       proxy(vm, `_data`, key)
     }
   }
@@ -160,6 +180,7 @@ function initData (vm: Component) {
   observe(data, true /* asRootData */)
 }
 
+//传入合并策略执行完的函数，在函数内部调用，返回最终的数据。
 function getData (data: Function, vm: Component): any {
   try {
     return data.call(vm, vm)
