@@ -1,5 +1,5 @@
 {
-  "name": "vue源码分析-备注版",
+  "name": "vue",
   "version": "2.5.9",
   "description": "Reactive, component-oriented view layer for modern web interfaces.",
   "main": "dist/vue.runtime.common.js",

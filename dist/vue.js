@@ -1,6 +1,6 @@
 /*!
  * Vue.js v2.5.9
- * (c) 2014-2017 Evan You
+ * (c) 2014-2018 Evan You
  * Released under the MIT License.
  */
 (function (global, factory) {
@@ -687,9 +687,6 @@ Dep.prototype.notify = function notify () {
   }
 };
 
-// the current target watcher being evaluated.
-// this is globally unique because there could be only one
-// watcher being evaluated at any time.
 Dep.target = null;
 var targetStack = [];
 
@@ -871,6 +868,7 @@ var Observer = function Observer (value) {
   this.value = value;
   this.dep = new Dep();
   this.vmCount = 0;
+  //def是定义的函数，使用Object.defineProperty()给value添加不可枚举的属性,__ob__是一个对象被observe的标志。
   def(value, '__ob__', this);
   if (Array.isArray(value)) {
     var augment = hasProto
@@ -879,6 +877,7 @@ var Observer = function Observer (value) {
     augment(value, arrayMethods, arrayKeys);
     this.observeArray(value);
   } else {
+     //对于对象，遍历对象，并用Object.defineProperty转化为getter/setter，便于监控数据的get和set
     this.walk(value);
   }
 };
@@ -933,11 +932,16 @@ function copyAugment (target, src, keys) {
  * returns the new observer if successfully observed,
  * or the existing observer if the value already has one.
  */
+ /**
+ *  第一个参数传入要响应式处理的数据
+ * 第二个参数是一个布尔值，暂不清楚作用是做啥的
+ **/
 function observe (value, asRootData) {
   if (!isObject(value) || value instanceof VNode) {
     return
   }
   var ob;
+  //如果存在__ob__属性，说明该对象没被observe过，不是observer类
   if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
     ob = value.__ob__;
   } else if (
@@ -947,6 +951,7 @@ function observe (value, asRootData) {
     Object.isExtensible(value) &&
     !value._isVue
   ) {
+    //如果数据没有被observe过，且数据是array或object类型，那么将数据转化为observer类型，所以observer类接收的是对象和数组。
     ob = new Observer(value);
   }
   if (asRootData && ob) {
@@ -965,8 +970,9 @@ function defineReactive (
   customSetter,
   shallow
 ) {
+  //实例化一个dep，并将其闭包于每一个属性中，每一个属性有一个dep实例，每一个dep可以有多个订阅者
   var dep = new Dep();
-
+  
   var property = Object.getOwnPropertyDescriptor(obj, key);
   if (property && property.configurable === false) {
     return
@@ -975,13 +981,19 @@ function defineReactive (
   // cater for pre-defined getter/setters
   var getter = property && property.get;
   var setter = property && property.set;
-
+  //递归observe所有层次的data
   var childOb = !shallow && observe(val);
+
   Object.defineProperty(obj, key, {
     enumerable: true,
     configurable: true,
     get: function reactiveGetter () {
+      //获取属性的值，如果这个属性在转化之前定义过getter，那么调用该getter得到value的值，否则直接返回val。
       var value = getter ? getter.call(obj) : val;
+      //这里是Dep收集订阅者的过程，只有在Dep.target存在的情况下才进行这个操作，在Watcher收集依赖的时候才会设置Dep.target，所以Watcher收集依赖的时机就是Dep收集订阅者的时机。
+      //调用get的情况有两种:
+      //一是Watcher收集依赖的时候（此时Dep收集订阅者），
+      //二是模板或js代码里用到这个值，这个时候是不需要收集依赖的，只要返回值就可以了。
       if (Dep.target) {
         dep.depend();
         if (childOb) {
@@ -1008,7 +1020,9 @@ function defineReactive (
       } else {
         val = newVal;
       }
+      //当为属性设置了新的值，是需要observe的
       childOb = !shallow && observe(newVal);
+      //set的时候数据变化了，通知更新数据
       dep.notify();
     }
   });
@@ -1088,11 +1102,6 @@ function dependArray (value) {
 
 /*  */
 
-/**
- * Option overwriting strategies are functions that handle
- * how to merge a parent option value and a child option
- * value into the final value.
- */
 var strats = config.optionMergeStrategies;
 
 /**
@@ -1213,6 +1222,7 @@ function mergeHook (
     : parentVal
 }
 
+//将生命周期方法的合并策略挂载为 mergeHook
 LIFECYCLE_HOOKS.forEach(function (hook) {
   strats[hook] = mergeHook;
 });
@@ -1239,6 +1249,7 @@ function mergeAssets (
   }
 }
 
+// 将'component','directive','filter'的合并策略挂载为 mergeAssets
 ASSET_TYPES.forEach(function (type) {
   strats[type + 's'] = mergeAssets;
 });
@@ -1331,7 +1342,9 @@ function checkComponents (options) {
  * Object-based format.
  */
 function normalizeProps (options, vm) {
+  // 获取到当前实例化Vue传入的options
   var props = options.props;
+  //未传入则终止，暂时先考虑第一种最简单的初始化一个vue实例的情况，基本上传入一个el和data就足够了
   if (!props) { return }
   var res = {};
   var i, val, name;
@@ -1425,20 +1438,26 @@ function mergeOptions (
   vm
 ) {
   {
+    //判断当前new Vue的时候传入的components 是否合法，如名字为html元素节点名称div/img/...等等就不合法
     checkComponents(child);
   }
 
   if (typeof child === 'function') {
     child = child.options;
   }
-
+  //统一规范props
   normalizeProps(child, vm);
+  //统一规范Inject
   normalizeInject(child, vm);
+  //统一规范Directives
   normalizeDirectives(child);
+
   var extendsFrom = child.extends;
+  //递归合并extends的组件
   if (extendsFrom) {
     parent = mergeOptions(parent, extendsFrom, vm);
   }
+  //递归合并mixins传入的组件
   if (child.mixins) {
     for (var i = 0, l = child.mixins.length; i < l; i++) {
       parent = mergeOptions(parent, child.mixins[i], vm);
@@ -1794,6 +1813,7 @@ function withMacroTask (fn) {
 }
 
 function nextTick (cb, ctx) {
+  console.log(cb);
   var _resolve;
   callbacks.push(function () {
     if (cb) {
@@ -1826,8 +1846,9 @@ function nextTick (cb, ctx) {
 
 var mark;
 var measure;
-
+//判断当前必须在非生产环境下才可进行
 {
+  //判断当前的宿主环境必须是在浏览器中，并且当前的浏览器支持performance
   var perf = inBrowser && window.performance;
   /* istanbul ignore if */
   if (
@@ -1837,6 +1858,7 @@ var measure;
     perf.clearMarks &&
     perf.clearMeasures
   ) {
+    //相当于performance.mark，用于打标标记
     mark = function (tag) { return perf.mark(tag); };
     measure = function (name, startTag, endTag) {
       perf.measure(name, startTag, endTag);
@@ -1858,7 +1880,7 @@ var initProxy;
     'Math,Number,Date,Array,Object,Boolean,String,RegExp,Map,Set,JSON,Intl,' +
     'require' // for Webpack/Browserify
   );
-
+  
   var warnNonPresent = function (target, key) {
     warn(
       "Property or method \"" + key + "\" is not defined on the instance but " +
@@ -1869,13 +1891,18 @@ var initProxy;
       target
     );
   };
-
+  
   var hasProxy =
     typeof Proxy !== 'undefined' &&
     Proxy.toString().match(/native code/);
 
   if (hasProxy) {
+    // isBuiltInModifier 函数用来检测是否是内置的修饰符
     var isBuiltInModifier = makeMap('stop,prevent,self,ctrl,shift,alt,meta,exact');
+    //为config.keyCodes添加一个Proxy代理
+    //当为config.keyCodes设置值的时候，
+    //如果当前的key是内置的修饰符，则提示无效
+    //防止内置的修饰符被修改
     config.keyCodes = new Proxy(config.keyCodes, {
       set: function set (target, key, value) {
         if (isBuiltInModifier(key)) {
@@ -1890,10 +1917,17 @@ var initProxy;
   }
 
   var hasHandler = {
+    //has方法用来拦截HasProperty操作，即判断对象是否具有某个属性时，这个方法会生效。典型的操作就是in运算符。
     has: function has (target, key) {
+      //判断当前访问的key是否存在
       var has = key in target;
+      //判断当前访问的key是否是全局的JS API
       var isAllowed = allowedGlobals(key) || key.charAt(0) === '_';
+      //需要两个条件满足，才会提示访问的当前的key不存在，会展示出错误提示
+      //1.当前访问的key没有在Vue中定义
+      //2.当前访问的key也不是原生JS自带的全局API
       if (!has && !isAllowed) {
+        //错误提示：访问的key不存在
         warnNonPresent(target, key);
       }
       return has || !isAllowed
@@ -1916,6 +1950,11 @@ var initProxy;
       var handlers = options.render && options.render._withStripped
         ? getHandler
         : hasHandler;
+      //简单备注一下Proxy的用法：
+      //Proxy是ES6新增的API，用来对对象增加拦截操作，属于一种元编程
+      //第一个参数是要操作的目标对象
+      //第二个参数是handler，为一个对象，里面有多个操作，如get set 等等
+      //对 new Proxy 的实例执行对应的操作才会触发拦截，直接对目标对象操作不会触发
       vm._renderProxy = new Proxy(vm, handlers);
     } else {
       vm._renderProxy = vm;
@@ -2136,18 +2175,6 @@ function checkProp (
 
 /*  */
 
-// The template compiler attempts to minimize the need for normalization by
-// statically analyzing the template at compile time.
-//
-// For plain HTML markup, normalization can be completely skipped because the
-// generated render function is guaranteed to return Array<VNode>. There are
-// two cases where extra normalization is needed:
-
-// 1. When the children contains components - because a functional component
-// may return an Array instead of a single root. In this case, just a simple
-// normalization is needed - if any child is an Array, we flatten the whole
-// thing with Array.prototype.concat. It is guaranteed to be only 1-level deep
-// because functional components already normalize their own children.
 function simpleNormalizeChildren (children) {
   for (var i = 0; i < children.length; i++) {
     if (Array.isArray(children[i])) {
@@ -2871,16 +2898,25 @@ function deactivateChildComponent (vm, direct) {
 }
 
 function callHook (vm, hook) {
+  //先从$options中获取到生命周期钩子，如果是mounted那就是vm.$options.mounted
   var handlers = vm.$options[hook];
   if (handlers) {
+    //handlers可能是个数组,比如：
+    //通过Vue.extend生成的一个子类，父类上定义了mounted，子类初始化的时候再次定义了一遍mounted，
+    //此时，调用子类实例的时候，会按照顺序执行两次
     for (var i = 0, j = handlers.length; i < j; i++) {
       try {
+        //通过call来调用当前生命周期方法，以保证生命周期方法内的this指向当前的实例本身
         handlers[i].call(vm);
       } catch (e) {
         handleError(e, vm, (hook + " hook"));
       }
     }
   }
+  //_hasHookEvent定义在initEvents中
+  //用于检测组件是否有事件监听器
+  //并没有在文档中体现和说明
+  //在组件上可通过@hook:生命周期钩子名称 做监听
   if (vm._hasHookEvent) {
     vm.$emit('hook:' + hook);
   }
@@ -3245,7 +3281,7 @@ var sharedPropertyDefinition = {
   get: noop,
   set: noop
 };
-
+//代理_data下的数据访问到vm下
 function proxy (target, sourceKey, key) {
   sharedPropertyDefinition.get = function proxyGetter () {
     return this[sourceKey][key]
@@ -3257,16 +3293,25 @@ function proxy (target, sourceKey, key) {
 }
 
 function initState (vm) {
+  //在实例下挂载 _watchers
   vm._watchers = [];
+  //取出当前实例下的所有的options,这里获取到的是被策略合并过得
   var opts = vm.$options;
+  //如果vm.$options选项中存在props，则进行初始化props
   if (opts.props) { initProps(vm, opts.props); }
+  //同上，如果vm.$options选项中存在methods，则进行初始化methods
   if (opts.methods) { initMethods(vm, opts.methods); }
+  //同上
   if (opts.data) {
+    //初始化options的data
     initData(vm);
   } else {
+    //如果data不存在，则通过observe观测一个空对象
     observe(vm._data = {}, true /* asRootData */);
   }
+  //同上，如果vm.$options选项中存在computed，则进行初始化computed
   if (opts.computed) { initComputed(vm, opts.computed); }
+  //同上，如果vm.$options选项中存在watch，并且watch不是Object.prototype.watch，则进行初始化watch
   if (opts.watch && opts.watch !== nativeWatch) {
     initWatch(vm, opts.watch);
   }
@@ -3319,10 +3364,15 @@ function initProps (vm, propsOptions) {
 }
 
 function initData (vm) {
+  //获取到合并选项之后的$options中的data
   var data = vm.$options.data;
+  //此时data获取到的应该是在策略处理完data之后的返回值，根据data的合并策略mergeOptions，最终返回的是一个函数
+  //下面的校验是否是一个函数，暂时不清楚在什么情况下不会返回一个函数
+  //注意：在之前的合并策略之后返回的data函数，在初始化阶段才会调用getData得到最终的data数据
   data = vm._data = typeof data === 'function'
     ? getData(data, vm)
     : data || {};
+  //校验当前data选项是否是一个纯对象
   if (!isPlainObject(data)) {
     data = {};
     "development" !== 'production' && warn(
@@ -3331,14 +3381,19 @@ function initData (vm) {
       vm
     );
   }
+
   // proxy data on instance
+  //获取到data下所有的key，此时keys为数组
   var keys = Object.keys(data);
+  //获取到当前合并之后$options下所有的props
   var props = vm.$options.props;
+  //获取到当前合并之后$options下所有的methods
   var methods = vm.$options.methods;
   var i = keys.length;
   while (i--) {
     var key = keys[i];
     {
+      //校验当前的data的key是否与methods下的方法名重名
       if (methods && hasOwn(methods, key)) {
         warn(
           ("Method \"" + key + "\" has already been defined as a data property."),
@@ -3346,20 +3401,33 @@ function initData (vm) {
         );
       }
     }
+    //校验当前的data的key是否与props下的方法名重名，与上面不同的是，data的优先级低于props,data的优先级大于methods
+    //之所以不能重名，是因为在实例中，不管是props、data、methods都会被访问代理到实例下，相同的名字在访问过程中会冲突
     if (props && hasOwn(props, key)) {
       "development" !== 'production' && warn(
         "The data property \"" + key + "\" is already declared as a prop. " +
         "Use prop default value instead.",
         vm
       );
+      //isReserved通过判断该key是否是$或_来判断该键是否应该被代理
+      //疑问：$或_开头的键之前遇到的是内置的键，但是当前所处的位置只可能获取到data下的键，不应该会存在$或_
+      //开头的键啊，难道是为了约束规范，避免开发者和Vue框架内置的键本身的键产生混淆？
+      //答案在文档中找到，以下摘自官方文档对data说明：
+      //以 _ 或 $ 开头的属性 不会 被 Vue 实例代理，因为它们可能和 Vue 内置的属性、API 方法冲突
     } else if (!isReserved(key)) {
+      //通过定义getter和setter方法，
+      //将$options下的data访问代理到当前实例，
+      //这样，便直接可以通过vm.key方式直接调用某个data下的数据
+      //实际上还是访问的vm._data.key
       proxy(vm, "_data", key);
     }
   }
   // observe data
+  //从这里开始响应式处理数据，详见上一层目录observe下的index文件
   observe(data, true /* asRootData */);
 }
 
+//传入合并策略执行完的函数，在函数内部调用，返回最终的数据。
 function getData (data, vm) {
   try {
     return data.call(vm, vm)
@@ -3522,6 +3590,14 @@ function stateMixin (Vue) {
   // the object here.
   var dataDef = {};
   dataDef.get = function () { return this._data };
+  //之前糊涂了，这不就是Object.defineProperty({
+  //  value:this._data,
+  //  ...,
+  //  get(){},
+  //  set(){} 
+  // })嘛，
+  //这里判断在非生产环境下，不允许直接替换$data和$props
+  //通过拦截setter,将其作为一个只读属性
   var propsDef = {};
   propsDef.get = function () { return this._props };
   {
@@ -3536,9 +3612,13 @@ function stateMixin (Vue) {
       warn("$props is readonly.", this);
     };
   }
+  //代理this._data 为 this.$data 
   Object.defineProperty(Vue.prototype, '$data', dataDef);
+  //代理this._props 为 this.$props 
   Object.defineProperty(Vue.prototype, '$props', propsDef);
 
+  //挂载实例方法$set和$delete，这两个api的作用是用来添加新的响应式数据字段
+  //具体实现详见set方法
   Vue.prototype.$set = set;
   Vue.prototype.$delete = del;
 
@@ -3634,9 +3714,6 @@ function resolveInject (inject, vm) {
 
 /*  */
 
-/**
- * Runtime helper for rendering v-for lists.
- */
 function renderList (
   val,
   render
@@ -3668,9 +3745,6 @@ function renderList (
 
 /*  */
 
-/**
- * Runtime helper for rendering <slot>
- */
 function renderSlot (
   name,
   fallback,
@@ -3717,20 +3791,12 @@ function renderSlot (
 
 /*  */
 
-/**
- * Runtime helper for resolving filters
- */
 function resolveFilter (id) {
   return resolveAsset(this.$options, 'filters', id, true) || identity
 }
 
 /*  */
 
-/**
- * Runtime helper for checking keyCodes from config.
- * exposed as Vue.prototype._k
- * passing in eventKeyName as last argument separately for backwards compat
- */
 function checkKeyCodes (
   eventKeyCode,
   key,
@@ -3751,9 +3817,6 @@ function checkKeyCodes (
 
 /*  */
 
-/**
- * Runtime helper for merging v-bind="object" into a VNode's data.
- */
 function bindObjectProps (
   data,
   tag,
@@ -3805,9 +3868,6 @@ function bindObjectProps (
 
 /*  */
 
-/**
- * Runtime helper for rendering static trees.
- */
 function renderStatic (
   index,
   isInFor,
@@ -4010,7 +4070,6 @@ function mergeProps (to, from) {
 
 /*  */
 
-// hooks to be invoked on component VNodes during patch
 var componentVNodeHooks = {
   init: function init (
     vnode,
@@ -4469,22 +4528,34 @@ function renderMixin (Vue) {
 
 var uid$1 = 0;
 
+//接受Vue构造方法
 function initMixin (Vue) {
+
+  //在Vue构造方法的原型上挂载_init方法，这也是在new Vue()执行的第一个实例方法
+  //该方法接受实例化Vue传入的参数，是一个对象，对象内包含:data,computed,components等等
   Vue.prototype._init = function (options) {
+    //定义一个常量vm，代表的是当前的实例
     var vm = this;
     // a uid
+    //每个Vue实例设置唯一id
     vm._uid = uid$1++;
-
+    
+    //定义两个标记变量，用于在支持performance的浏览器上测试性能
+    //回头单独写篇博客介绍这个
     var startTag, endTag;
     /* istanbul ignore if */
     if ("development" !== 'production' && config.performance && mark) {
       startTag = "vue-perf-start:" + (vm._uid);
       endTag = "vue-perf-end:" + (vm._uid);
+      //利用performance打上开始标记，相当于 performance.mark
+      //详见until下的per.js文件中的描述
       mark(startTag);
     }
 
+    //
     // a flag to avoid this being observed
     vm._isVue = true;
+    // debugger;
     // merge options
     if (options && options._isComponent) {
       // optimize internal component instantiation
@@ -4492,6 +4563,15 @@ function initMixin (Vue) {
       // internal component options needs special treatment.
       initInternalComponent(vm, options);
     } else {
+      //合并策略，用于合并构造方法上的options选项和实例化时传入的options,
+      //构造方法不一定只是Vue，也可能是Vue构造方法的子类，例如：
+      //let Child = Vue.extend({})
+      //也可以通过 let child = new Child({})创建一个实例
+      //这里会传入三个参数：
+      //第一个是挂载在构造函数上的options对象，静态属性
+      //第二个是实例化构造方法的时候传入的参数
+      //第三个参数是当前的实例对象vm
+      //最终会将所有的options合并，并且挂载上不同的options参数相对应的策略方法并返回
       vm.$options = mergeOptions(
         resolveConstructorOptions(vm.constructor),
         options || {},
@@ -4503,17 +4583,27 @@ function initMixin (Vue) {
       initProxy(vm);
     }
     // expose real self
+    //在当前实例下挂载一个名为_self的属性，其值指向当前的vue实例本身
     vm._self = vm;
+    //挂载基本的生命周期所需的参数，除此之外还有$parent,$children,$refs
     initLifecycle(vm);
+    //除了设置一些初始化的操作，似乎还调用一些类似于父级的事件方法，暂时留个疑问：vm.$options._parentListeners ?????
     initEvents(vm);
+    //
     initRender(vm);
+    //执行了beforeCreate的生命周期方法，目前理解到的是执行到挂载在$options下的对应的生命周期方法的策略方法
     callHook(vm, 'beforeCreate');
+    //
     initInjections(vm); // resolve injections before data/props
+    
+    //初始化props,methods,data，computed，watch
     initState(vm);
+    
     initProvide(vm); // resolve provide after data/props
     callHook(vm, 'created');
 
     /* istanbul ignore if */
+    //这里,跟上面开始打上开始标记相对应
     if ("development" !== 'production' && config.performance && mark) {
       vm._name = formatComponentName(vm, false);
       mark(endTag);
@@ -4601,18 +4691,56 @@ function dedupe (latest, extended, sealed) {
 }
 
 function Vue$3 (options) {
+  //判断当前环境，非生产环境下，需要判断当前实例是否是Vue构造的实例，
+  //也就是通过new Vue()生成的，如果不是，直接提示：
+  //Vue is a constructor and should be called with the `new` keyword
   if ("development" !== 'production' &&
     !(this instanceof Vue$3)
   ) {
     warn('Vue is a constructor and should be called with the `new` keyword');
   }
+  //这是Vue实例调用的第一个方法，该实例方法在initMixin方法挂载；
   this._init(options);
 }
 
+/**
+ * Vue.prototype._init = function(){} 执行才会有以下原型属性或方法
+ * Vue.prototype._uid = 
+ * Vue.prototype._isVue = 
+ * Vue.prototype.$options = 
+ * Vue.prototype._renderProxy = 
+ * Vue.prototype._self = 
+ * **/
 initMixin(Vue$3);
+
+/**
+ * Vue.prototype.$data = 
+ * Vue.prototype.$props = 
+ * Vue.prototype.$watch = 
+ * 
+*/
 stateMixin(Vue$3);
+
+/**
+ * Vue.prototype.$on = function(){}
+ * Vue.prototype.$once = function(){}
+ * Vue.prototype.$off  = function(){}
+ * Vue.prototype.$emit  = function(){}
+ * 
+*/
 eventsMixin(Vue$3);
+
+/**
+ * Vue.prototype._update = function(){}
+ * Vue.prototype.$forceUpdate = function(){}
+ * Vue.prototype.$destroy = function(){}
+ * **/
 lifecycleMixin(Vue$3);
+
+/**
+ * Vue.prototype.$nextTick = function(){}
+ * Vue.prototype._render = function(){}
+ * **/
 renderMixin(Vue$3);
 
 /*  */
@@ -4919,6 +5047,7 @@ function initGlobalAPI (Vue) {
   // config
   var configDef = {};
   configDef.get = function () { return config; };
+  //非生产环境下，config为只读状态
   {
     configDef.set = function () {
       warn(
@@ -4926,6 +5055,7 @@ function initGlobalAPI (Vue) {
       );
     };
   }
+  //在Vue构造方法上挂载config
   Object.defineProperty(Vue, 'config', configDef);
 
   // exposed util methods.
@@ -4937,11 +5067,12 @@ function initGlobalAPI (Vue) {
     mergeOptions: mergeOptions,
     defineReactive: defineReactive
   };
-
+  //挂载静态方法
   Vue.set = set;
   Vue.delete = del;
   Vue.nextTick = nextTick;
-
+  
+  //在Vue中component、directive、filter被称为静态资源
   Vue.options = Object.create(null);
   ASSET_TYPES.forEach(function (type) {
     Vue.options[type + 's'] = Object.create(null);
@@ -4950,21 +5081,42 @@ function initGlobalAPI (Vue) {
   // this is used to identify the "base" constructor to extend all plain-object
   // components with in Weex's multi-instance scenarios.
   Vue.options._base = Vue;
-
+  
+  //extend方法详见shared目录下，简单讲copy一个对象到两一个对象上
+  //将builtInComponents复制到Vue.options.components上
+  //所以当前 builtInComponents 仅仅代表的是内置组件keep-live
+  // Vue.options.components = {
+  //    KeepAlive
+  // }
   extend(Vue.options.components, builtInComponents);
 
+  //挂载静态方法use，Vue.use就是安装Vue插件的内置方法
   initUse(Vue);
+  
+  //挂载mixin方法
   initMixin$1(Vue);
+  
+  //挂载extend方法
   initExtend(Vue);
+
+  //挂载全局component，directive，filter静态方法
   initAssetRegisters(Vue);
 }
 
 initGlobalAPI(Vue$3);
 
+/**
+ * Vue.prototype.$isServer =  function(){}
+ * 初步猜测是服务端渲染SSR相关的配置
+*/
 Object.defineProperty(Vue$3.prototype, '$isServer', {
   get: isServerRendering
 });
 
+/**
+ * Vue.prototype.$ssrContext =  {}
+ * 初步猜测是服务端渲染SSR相关的配置
+*/
 Object.defineProperty(Vue$3.prototype, '$ssrContext', {
   get: function get () {
     /* istanbul ignore next */
@@ -4972,12 +5124,11 @@ Object.defineProperty(Vue$3.prototype, '$ssrContext', {
   }
 });
 
+//挂载Vue的版本号
 Vue$3.version = '2.5.9';
 
 /*  */
 
-// these are reserved for web because they are directly compiled away
-// during template compilation
 var isReservedAttr = makeMap('style,class');
 
 // attributes that should be using props for binding
@@ -5174,9 +5325,6 @@ var isTextInputType = makeMap('text,number,password,search,email,tel,url');
 
 /*  */
 
-/**
- * Query an element selector if it's not an element already.
- */
 function query (el) {
   if (typeof el === 'string') {
     var selected = document.querySelector(el);
@@ -6849,10 +6997,6 @@ function genDefaultModel (
 
 /*  */
 
-// normalize v-model event tokens that can only be determined at runtime.
-// it's important to place the event as the first in the array because
-// the whole point is ensuring the v-model callback gets called before
-// user-attached handlers.
 function normalizeEvents (on) {
   /* istanbul ignore if */
   if (isDef(on[RANGE_TOKEN])) {
@@ -7745,8 +7889,6 @@ var platformModules = [
 
 /*  */
 
-// the directive module should be applied last, after all
-// built-in modules have been applied.
 var modules = platformModules.concat(baseModules);
 
 var patch = createPatchFunction({ nodeOps: nodeOps, modules: modules });
@@ -7756,7 +7898,6 @@ var patch = createPatchFunction({ nodeOps: nodeOps, modules: modules });
  * properties to Elements.
  */
 
-/* istanbul ignore if */
 if (isIE9) {
   // http://www.matts411.com/post/internet-explorer-9-oninput/
   document.addEventListener('selectionchange', function () {
@@ -7894,7 +8035,6 @@ function trigger (el, type) {
 
 /*  */
 
-// recursively search for possible transition defined inside the component root
 function locateNode (vnode) {
   return vnode.componentInstance && (!vnode.data || !vnode.data.transition)
     ? locateNode(vnode.componentInstance._vnode)
@@ -8325,8 +8465,12 @@ var platformComponents = {
 };
 
 /*  */
+/**
+ * 将平台相关的配置挂载上去，目前有两个平台Web和Weex
+ * **/
+//core是一个别名，定义在build文件夹中的alias文件中：
+//core: resolve('src/core')
 
-// install platform specific utils
 Vue$3.config.mustUseProp = mustUseProp;
 Vue$3.config.isReservedTag = isReservedTag;
 Vue$3.config.isReservedAttr = isReservedAttr;
@@ -8545,7 +8689,6 @@ var isNonPhrasingTag = makeMap(
  * http://erik.eae.net/simplehtmlparser/simplehtmlparser.js
  */
 
-// Regular Expressions for parsing tags and attributes
 var attribute = /^\s*([^\s"'<>\/=]+)(?:\s*(=)\s*(?:"([^"]*)"+|'([^']*)'+|([^\s"'=<>`]+)))?/;
 // could use https://www.w3.org/TR/1999/REC-xml-names-19990114/#NT-QName
 // but for Vue templates we can enforce a simple charset
@@ -10320,8 +10463,6 @@ function transformSpecialNewlines (text) {
 
 /*  */
 
-// these keywords should not appear inside expressions, but operators like
-// typeof, instanceof and in are allowed
 var prohibitedKeywordRE = new RegExp('\\b' + (
   'do,if,for,let,new,try,var,case,else,with,await,break,catch,class,const,' +
   'super,throw,while,yield,delete,export,import,return,switch,default,' +
@@ -10576,9 +10717,6 @@ function createCompilerCreator (baseCompile) {
 
 /*  */
 
-// `createCompilerCreator` allows creating compilers that use alternative
-// parser/optimizer/codegen, e.g the SSR optimizing compiler.
-// Here we just export a default compiler using the default parts.
 var createCompiler = createCompilerCreator(function baseCompile (
   template,
   options
@@ -10600,7 +10738,6 @@ var compileToFunctions = ref$1.compileToFunctions;
 
 /*  */
 
-// check whether current browser encodes a char inside attribute values
 var div;
 function getShouldDecode (href) {
   div = div || document.createElement('div');
@@ -10667,7 +10804,7 @@ Vue$3.prototype.$mount = function (
       if ("development" !== 'production' && config.performance && mark) {
         mark('compile');
       }
-
+      
       var ref = compileToFunctions(template, {
         shouldDecodeNewlines: shouldDecodeNewlines,
         shouldDecodeNewlinesForHref: shouldDecodeNewlinesForHref,
@@ -10678,7 +10815,7 @@ Vue$3.prototype.$mount = function (
       var staticRenderFns = ref.staticRenderFns;
       options.render = render;
       options.staticRenderFns = staticRenderFns;
-
+      
       /* istanbul ignore if */
       if ("development" !== 'production' && config.performance && mark) {
         mark('compile end');
@@ -10708,3 +10845,4 @@ Vue$3.compile = compileToFunctions;
 return Vue$3;
 
 })));
+//# sourceMappingURL=vue.js.map

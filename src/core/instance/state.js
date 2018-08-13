@@ -343,8 +343,14 @@ export function stateMixin (Vue: Class<Component>) {
   // the object here.
   const dataDef = {}
   dataDef.get = function () { return this._data }
-  //暂时搞不懂这样的写法，定义一个对象，为对象添加get/set的key，其值实际上代理的实例下的_data和_props
-  //那岂不是当访问_data的时候，要这样写this.$data.get().key啊？？？
+  //之前糊涂了，这不就是Object.defineProperty({
+  //  value:this._data,
+  //  ...,
+  //  get(){},
+  //  set(){} 
+  // })嘛，
+  //这里判断在非生产环境下，不允许直接替换$data和$props
+  //通过拦截setter,将其作为一个只读属性
   const propsDef = {}
   propsDef.get = function () { return this._props }
   if (process.env.NODE_ENV !== 'production') {
@@ -359,8 +365,9 @@ export function stateMixin (Vue: Class<Component>) {
       warn(`$props is readonly.`, this)
     }
   }
-  //暂时留个疑问
+  //代理this._data 为 this.$data 
   Object.defineProperty(Vue.prototype, '$data', dataDef)
+  //代理this._props 为 this.$props 
   Object.defineProperty(Vue.prototype, '$props', propsDef)
 
   //挂载实例方法$set和$delete，这两个api的作用是用来添加新的响应式数据字段

@@ -24,7 +24,7 @@ export function initMixin (Vue: Class<Component>) {
     // a uid
     //每个Vue实例设置唯一id
     vm._uid = uid++
-
+    
     //定义两个标记变量，用于在支持performance的浏览器上测试性能
     //回头单独写篇博客介绍这个
     let startTag, endTag
@@ -40,6 +40,7 @@ export function initMixin (Vue: Class<Component>) {
     //
     // a flag to avoid this being observed
     vm._isVue = true
+    // debugger;
     // merge options
     if (options && options._isComponent) {
       // optimize internal component instantiation

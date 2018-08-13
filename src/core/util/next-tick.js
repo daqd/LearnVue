@@ -88,6 +88,7 @@ export function withMacroTask (fn: Function): Function {
 }
 
 export function nextTick (cb?: Function, ctx?: Object) {
+  console.log(cb);
   let _resolve
   callbacks.push(() => {
     if (cb) {

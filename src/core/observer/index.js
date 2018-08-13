@@ -36,7 +36,7 @@ export class Observer {
   value: any;
   dep: Dep;
   vmCount: number; // number of vms that has this object as root $data
-
+  
   constructor (value: any) {
     this.value = value
     this.dep = new Dep()
@@ -146,7 +146,7 @@ export function defineReactive (
 ) {
   //实例化一个dep，并将其闭包于每一个属性中，每一个属性有一个dep实例，每一个dep可以有多个订阅者
   const dep = new Dep()
-
+  
   const property = Object.getOwnPropertyDescriptor(obj, key)
   if (property && property.configurable === false) {
     return

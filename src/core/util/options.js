@@ -26,7 +26,7 @@ import {
  * value into the final value.
  */
  //当前为空对象，在外城config.js中有 optionMergeStrategies: Object.create(null)
- 
+
 const strats = config.optionMergeStrategies
 
 /**
@@ -363,20 +363,26 @@ export function mergeOptions (
   vm?: Component
 ): Object {
   if (process.env.NODE_ENV !== 'production') {
+    //判断当前new Vue的时候传入的components 是否合法，如名字为html元素节点名称div/img/...等等就不合法
     checkComponents(child)
   }
 
   if (typeof child === 'function') {
     child = child.options
   }
-
+  //统一规范props
   normalizeProps(child, vm)
+  //统一规范Inject
   normalizeInject(child, vm)
+  //统一规范Directives
   normalizeDirectives(child)
+
   const extendsFrom = child.extends
+  //递归合并extends的组件
   if (extendsFrom) {
     parent = mergeOptions(parent, extendsFrom, vm)
   }
+  //递归合并mixins传入的组件
   if (child.mixins) {
     for (let i = 0, l = child.mixins.length; i < l; i++) {
       parent = mergeOptions(parent, child.mixins[i], vm)
